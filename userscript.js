@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Lolzteam Multiaccount Finder
-// @version      0.7
+// @version      0.8
 // @description  Your assistant in finding scammers on the forum
 // @author       vuchaev2015
 // @match        https://zelenka.guru/*
@@ -254,7 +254,7 @@ function checkThreadItems() {
                                     if (multiaccountFinderButton) {
                                         multiaccountFinderButton.addEventListener("click", function (event) {
                                             event.preventDefault();
-                                            checkUser(`https://${domain}${currentUrl}shared-ips/`)
+                                            checkUser(`https://${domain}/${currentUrl}shared-ips/`)
                                         })
                                     }
                                 }
@@ -291,7 +291,7 @@ function checkUser(link, gifId) {
         const numUserLogs = userLogs.length;
         console.log(userLogs)
         console.log(numUserLogs);
-        const nameEl = htmlDocument.querySelector('a.crumb[href^="https://${domain}/"] span');
+        const nameEl = htmlDocument.querySelector(`a.crumb[href^="https://${domain}/"] span`);
         const name = nameEl ? nameEl.textContent.trim() : "";
 
         const gifElement = document.getElementById(gifId);
