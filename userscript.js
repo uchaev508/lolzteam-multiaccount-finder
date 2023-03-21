@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Lolzteam Multiaccount Finder
-// @version      0.8
+// @version      0.9.1
 // @description  Your assistant in finding scammers on the forum
 // @author       vuchaev2015
 // @match        https://zelenka.guru/*
@@ -10,38 +10,34 @@
 // ==/UserScript==
 
 var domain = 'zelenka.guru'
+var items = [
+    {key: "autocheck-mini-profile", value: "false"},
+    {key: "autocheck-profile", value: "false"},
+    {key: "autocheck-banned-users-mporp", value: "false"},
+    {key: "addbutton-profile", value: "true"},
+    {key: "addbutton-threads", value: "true"}
+];
 
-if (!localStorage.getItem("autocheck-mini-profile")) {
-    localStorage.setItem("autocheck-mini-profile", "false");
-}
-if (!localStorage.getItem("autocheck-profile")) {
-    localStorage.setItem("autocheck-profile", "false");
-}
-if (!localStorage.getItem("autocheck-banned-users-mporp")) {
-    localStorage.setItem("autocheck-banned-users-mporp", "false");
-}
+items.forEach(function(item) {
+    if (!localStorage.getItem(item.key)) {
+        localStorage.setItem(item.key, item.value);
+    }
+});
 
-// Находим элемент с ID AccountMenu
 var accountMenu = document.getElementById("AccountMenu");
-
-// Создаем новый пункт списка
-var newListItem = document.createElement("li");
-var buttonId = `lmfsettings`; // generate a unique button ID
-newListItem.innerHTML = `<a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a>`;
-
-// Добавляем новый пункт в список
 var linksList = accountMenu.querySelector(".blockLinksList");
-linksList.appendChild(newListItem);
+var buttonId = `lmfsettings`;
 
-// Добавляем обработчик события клика на новый пункт меню
-var multiaccountFinderButton = document.getElementById(buttonId);
-multiaccountFinderButton.addEventListener("click", function (event) {
+linksList.insertAdjacentHTML('beforeend', `<li><a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a></li>`);
+
+document.getElementById(buttonId).addEventListener("click", function (event) {
     event.preventDefault();
     openSettings();
 });
 
-var navigationUsername = document.getElementById('NavigationAccountUsername').textContent;
+var hrefSearchUsers = document.querySelector('a[href^="/search/search?users="]').href.split('?users=')[1].split('&')[0];
 
+// ***вроде оптимизирован более-менее***
 // Меню с настройками
 function openSettings() {
     var unixtime = Math.floor(Date.now() / 1000); // Получаем текущее время в секундах
@@ -50,152 +46,120 @@ function openSettings() {
     var chkboxProfile = '<input type="checkbox" id="autocheck-profile-' + unixtime + '" name="autocheck-profile-' + unixtime + '" ' + (isCheckedProfile ? 'checked="checked" ' : '') + 'value="1"> Автоматическая проверка в профилях<div></div>';
 
     var isCheckedMiniProfile = localStorage.getItem("autocheck-mini-profile") === "true";
-    var chkboxMiniProfile = '<div> <input type="checkbox" id="autocheck-mini-profile-' + unixtime + '" name="autocheck-mini-profile-' + unixtime + '" ' + (isCheckedMiniProfile ? 'checked="checked" ' : '') + 'value="1"> Автоматическая проверка в мини-профилях </div>';
+    var chkboxMiniProfile = '<br><div> <input type="checkbox" id="autocheck-mini-profile-' + unixtime + '" name="autocheck-mini-profile-' + unixtime + '" ' + (isCheckedMiniProfile ? 'checked="checked" ' : '') + 'value="1"> Автоматическая проверка в мини-профилях </div>';
 
     var isCheckedBannedUsers = localStorage.getItem("autocheck-banned-users-mporp") === "true";
-    var chkboxBannedUsers = '<div> <input type="checkbox" id="autocheck-banned-users-mporp-' + unixtime + '" name="autocheck-banned-users-mporp-' + unixtime + '" ' + (isCheckedBannedUsers ? 'checked="checked" ' : '') + 'value="1"> Автоматически проверять заблокированных </div>';
+    var chkboxBannedUsers = '<br><div> <input type="checkbox" id="autocheck-banned-users-mporp-' + unixtime + '" name="autocheck-banned-users-mporp-' + unixtime + '" ' + (isCheckedBannedUsers ? 'checked="checked" ' : '') + 'value="1"> Автоматически проверять заблокированных </div>';
 
-    var content = chkboxProfile  + chkboxMiniProfile + chkboxBannedUsers;
+    var isCheckedAddButtonThreads = localStorage.getItem("addbutton-threads") === "true";
+    var chkboxAddButtonThreads = '<br><div> <input type="checkbox" id="addbutton-threads-' + unixtime + '" name="addbutton-threads-' + unixtime + '" ' + (isCheckedAddButtonThreads ? 'checked="checked" ' : '') + 'value="1"> Добавить кнопку на постах и комментариях в темах </div>';
+
+    var isCheckedAddButtonProfile = localStorage.getItem("addbutton-profile") === "true";
+    var chkboxAddButtonProfile = '<br><div> <input type="checkbox" id="addbutton-profile-' + unixtime + '" name="addbutton-profile-' + unixtime + '" ' + (isCheckedAddButtonProfile ? 'checked="checked" ' : '') + 'value="1"> Добавить кнопку на постах и комментариях в профиле </div>';
+
+    var content = chkboxProfile  + chkboxMiniProfile + chkboxBannedUsers + chkboxAddButtonThreads + chkboxAddButtonProfile;
     XenForo.alert(content, 'Lolzteam Multiaccount Finder');
 
-    var checkboxProfile = document.getElementById("autocheck-profile-" + unixtime);
-    checkboxProfile.addEventListener("change", function() {
-        localStorage.setItem("autocheck-profile" , checkboxProfile.checked);
-        console.log(localStorage); // Выводим содержимое localStorage в консоль
-    });
+    var checkboxes = [
+        "autocheck-profile-" + unixtime,
+        "autocheck-mini-profile-" + unixtime,
+        "autocheck-banned-users-mporp-" + unixtime,
+        "addbutton-threads-" + unixtime,
+        "addbutton-profile-" + unixtime
+    ];
 
-    var checkboxMiniProfile = document.getElementById("autocheck-mini-profile-" + unixtime);
-    checkboxMiniProfile.addEventListener("change", function() {
-        localStorage.setItem("autocheck-mini-profile" , checkboxMiniProfile.checked);
-        console.log(localStorage); // Выводим содержимое localStorage в консоль
-    });
-
-    var checkboxBannedUsers = document.getElementById("autocheck-banned-users-mporp-" + unixtime);
-    checkboxBannedUsers.addEventListener("change", function() {
-        localStorage.setItem("autocheck-banned-users-mporp" , checkboxBannedUsers.checked);
-        console.log(localStorage); // Выводим содержимое localStorage в консоль
+    checkboxes.forEach(function(id) {
+        var checkbox = document.getElementById(id);
+        checkbox.addEventListener('change', function() {
+            localStorage.setItem(this.id.replace(/-\d+$/, ''), `${this.checked}`);
+            console.log(this.id.replace(/-\d+$/, ''))
+            console.log(`${this.checked}`);
+        });
     });
 }
-
+// ***уже оптимизирован***
 // Добавляем кнопку Multiaccount Finder в профиле и мини профиле если присутствует кнопка shared-ips
 function checkMenuItems() {
-    let sharedItems = document.querySelectorAll('.Menu a');
-    sharedItems.forEach(function (item) {
-        if (item.getAttribute('href') && item.getAttribute('href').includes('/shared-ips')) {
-            let menu = item.parentNode.parentNode;
-            if (!menu.hasAttribute("data-multiaccount-finder")) {
-                let newMenuItem = document.createElement("li");
-                let buttonId = `multiaccountFinderButton-${Date.now()}`; // generate a unique button ID
-                let lastid = `${buttonId}`
-                menu.setAttribute("data-multiaccount-finder", "added");
-                newMenuItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
-                menu.appendChild(newMenuItem);
-                let currentUrl = window.location.href;
-                currentUrl = item.getAttribute("href");
-                let multiaccountFinderButton = document.getElementById(buttonId);
-                if (multiaccountFinderButton) {
-                    multiaccountFinderButton.addEventListener("click", function (event) {
-                        event.preventDefault();
-                        checkUser(`${currentUrl}`);
-                    })
-                }
-
-                let makeClaimLink = menu.querySelector('a[href*="/make-claim"]');
-                if (makeClaimLink) {
-                    if (localStorage.getItem("autocheck-mini-profile") === 'true') { // проверка включенного авточека в мини профиле
-                        const bannedModule = document.querySelectorAll('.usernameAndStatus');
-                        bannedModule.forEach(function(module){
-                            let bannedcheck = module.parentNode.parentNode; // проверка на заблокированного пользователя
-                            if (!bannedcheck.hasAttribute("data-multiaccount-finder")) {
-                                bannedcheck.setAttribute("data-multiaccount-finder", "added");
-                                const countsModule = document.querySelectorAll('.userStatCounters');
-                                const gifElement = document.createElement('img');
-                                const gifId = `gif-profile-${Date.now()}`;
-                                gifElement.id = gifId;
-                                gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
-                                gifElement.width = '24';
-                                gifElement.height = '24';
-                                gifElement.title = '';
-                                // перебираем элементы userStatCounters
-                                countsModule.forEach(function(module){
-                                    let miniprofileMenu = module.parentNode.parentNode;
-                                    if (!miniprofileMenu.hasAttribute("data-multiaccount-finder")) {
-                                        miniprofileMenu.setAttribute("data-multiaccount-finder", "added");
-                                        const element = document.getElementById(lastid); // находим элемент по
-                                        if (element) { // проверяем, что элемент найден
-                                            element.remove(); // удаляем элемент
-                                        }
-                                        module.appendChild(gifElement);
-                                        if (localStorage.getItem("autocheck-banned-users-mporp") === 'false') {
-                                            if (!bannedcheck.querySelector('.banInfo.muted.Tooltip')) {
-                                                checkUser(`${currentUrl}`, gifId);
-                                            } else {
-                                                const element = document.getElementById(gifId); // находим элемент по id
-                                                if (element) { // проверяем, что элемент gif найден
-                                                    element.remove(); // удаляем элемент gif из мини профиля
-                                                    newMenuItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
-                                                    menu.appendChild(newMenuItem);
-                                                }
-                                            }
-                                        }
-                                        // если указан True autocheck-banned-users-mporp
-                                        else {
-                                            checkUser(`${currentUrl}`, gifId);
-                                        }
-                                    }
-                                });
-                            }
-                        });
-                    }
-                } else {
-                    if (localStorage.getItem("autocheck-profile") === 'true') { // проверка включенного авточека в обычном профиле
-                        const bannedModule = document.querySelectorAll('div.mainProfileColumn');
-                        bannedModule.forEach(function(module){
-                            let bannedcheck = module.parentNode.parentNode; // проверка на заблокированного пользователя
-                            if (!bannedcheck.hasAttribute("data-multiaccount-finder")) {
-                                bannedcheck.setAttribute("data-multiaccount-finder", "added");
-                                const countsModule = document.querySelectorAll('.counts_module');
-                                const gifElement = document.createElement('img');
-                                const gifId = `gif-profile`;
-                                gifElement.id = gifId;
-                                gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
-                                gifElement.width = '32';
-                                gifElement.height = '32';
-                                gifElement.title = '';
-                                countsModule.forEach(function(module){
-                                    let profilecounter = module.parentNode.parentNode;
-                                    if (!profilecounter.hasAttribute("data-multiaccount-finder")) {
-                                        profilecounter.setAttribute("data-multiaccount-finder", "added");
-                                        const element = document.getElementById(lastid); // находим элемент по id
-                                        if (element) { // проверяем, что элемент найден
-                                            element.remove(); // удаляем элемент
-                                        }
-                                        module.appendChild(gifElement);
-                                        if (localStorage.getItem("autocheck-banned-users-mporp") === 'false') {
-                                            if (!bannedcheck.querySelector('div.errorPanel')) {
-                                                checkUser(`${currentUrl}`, gifId);
-                                            } else {
-                                                const element = document.getElementById(gifId); // находим элемент по id
-                                                if (element) { // проверяем, что элемент gif найден
-                                                    element.remove(); // удаляем элемент gif из профиля
-                                                    newMenuItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
-                                                    menu.appendChild(newMenuItem);
-                                                }
-                                            }
-                                        }
-                                        // если указан True autocheck-banned-users-mporp
-                                        else {
-                                            checkUser(`${currentUrl}`, gifId);
-                                        }
-                                    }
-                                });
-                            }
-                        });
-                    }
-                }
-            }
+    const sharedItems = document.querySelectorAll('.Menu a[href*="/shared-ips"]');
+    sharedItems.forEach(item => {
+        const menu = item.parentNode.parentNode;
+        if (menu.hasAttribute("data-multiaccount-finder")) return;
+        menu.setAttribute("data-multiaccount-finder", "added");
+        const newMenuItem = document.createElement("li");
+        const buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
+        newMenuItem.innerHTML = `<a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a>`;
+        menu.appendChild(newMenuItem);
+        const currentUrl = item.getAttribute('href');
+        const multiaccountFinderButton = document.getElementById(buttonId);
+        if (multiaccountFinderButton) {
+            multiaccountFinderButton.addEventListener("click", event => {
+                event.preventDefault();
+                checkUser(currentUrl);
+            })
         }
-    })
+        const makeClaimLink = menu.querySelector('a[href*="/make-claim"]');
+        if (makeClaimLink) {
+            if (localStorage.getItem("autocheck-mini-profile") !== 'true') return;
+            const bannedModule = document.querySelectorAll('.usernameAndStatus');
+            bannedModule.forEach(module => {
+                const bannedcheck = module.parentNode.parentNode;
+                if (bannedcheck.hasAttribute("data-multiaccount-finder")) return;
+                bannedcheck.setAttribute("data-multiaccount-finder", "added");
+                const gifElement = document.createElement('img');
+                const gifId = `gif-profile-${generateRandomString(10)}`;
+                gifElement.id = gifId;
+                gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
+                gifElement.width = '24';
+                gifElement.height = '24';
+                gifElement.title = '';
+                const countsModule = document.querySelectorAll('.userStatCounters, .counts_module');
+                countsModule.forEach(module => {
+                    const miniprofileMenu = module.parentNode.parentNode;
+                    if (miniprofileMenu.hasAttribute("data-multiaccount-finder")) return;
+                    miniprofileMenu.setAttribute("data-multiaccount-finder", "added");
+                    module.appendChild(gifElement);
+                    if (localStorage.getItem("autocheck-banned-users-mporp") === 'false' && bannedcheck.querySelector('.banInfo.muted.Tooltip') || bannedcheck.querySelector('div.errorPanel')) {
+                        const element = document.getElementById(gifId);
+                        if (element) element.remove();
+                        return;
+                    }
+                    const element = document.getElementById(buttonId);
+                    if (element) element.remove();
+                    checkUser(currentUrl, gifId);
+                });
+            });
+        } else {
+            if (localStorage.getItem("autocheck-profile") !== 'true') return;
+            const bannedModule = document.querySelectorAll('div.mainProfileColumn');
+            bannedModule.forEach(module => {
+                const bannedcheck = module.parentNode.parentNode;
+                if (bannedcheck.hasAttribute("data-multiaccount-finder")) return;
+                bannedcheck.setAttribute("data-multiaccount-finder", "added");
+                const gifElement = document.createElement('img');
+                const gifId = `gif-profile`;
+                gifElement.id = gifId;
+                gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
+                gifElement.width = '32';
+                gifElement.height = '32';
+                gifElement.title = '';
+                const countsModule = document.querySelectorAll('.counts_module');
+                countsModule.forEach(module => {
+                    const profilecounter = module.parentNode.parentNode;
+                    if (profilecounter.hasAttribute("data-multiaccount-finder")) return;
+                    profilecounter.setAttribute("data-multiaccount-finder", "added");
+                    module.appendChild(gifElement);
+                    if (localStorage.getItem("autocheck-banned-users-mporp") === 'false' && bannedcheck.querySelector('div.errorPanel')) {
+                        const element = document.getElementById(gifId);
+                        if (element) element.remove();
+                        return;
+                    }
+                    const element = document.getElementById(buttonId);
+                    if (element) element.remove();
+                    checkUser(currentUrl, gifId);
+                });
+            });
+        }
+    });
 }
 
 function generateRandomString(length) {
@@ -208,18 +172,17 @@ function generateRandomString(length) {
     return result;
 }
 
+// ***уже оптимизирован***
 function checkThreadItems() {
-    // Проверяем, начинается ли текущий URL с "https://zelenka.guru/threads/"
-    if (window.location.href.indexOf(`https://${domain}/threads/`) === 0) {
-        // Получаем все элементы с классом "secondaryContent blockLinksList"
-        const linksLists = document.querySelectorAll(".secondaryContent.blockLinksList");
+    if (localStorage.getItem("addbutton-threads") === 'true') {
+        const linksLists = [...document.querySelectorAll('.secondaryContent.blockLinksList')]
+        .filter(list => !list.querySelector('li[id^="multiaccountFinderButton-"]'));
 
-        // Проходимся по каждому элементу и добавляем пункт "Multiaccount Finder"
         linksLists.forEach((linksList) => {
-            let links = linksList.querySelectorAll("a");
+            const links = linksList.querySelectorAll("a");
+
             links.forEach((link) => {
                 if (link.href.startsWith(`https://${domain}/posts/`)) {
-
                     let postId;
                     let newLink;
                     let postElement;
@@ -227,39 +190,35 @@ function checkThreadItems() {
                     if (link.href.includes('posts/comments/')) {
                         postId = link.href.split('posts/comments/')[1].split('/')[0];
                         newLink = `post-comment-${postId}`
-                        postElement = document.querySelector(`#${newLink}.comment`);
-                    }
-                    if (!link.href.includes('posts/comments/')) {
+                    } else {
                         postId = link.href.split('posts/')[1].split('/')[0];
                         newLink = `post-${postId}`
-                        postElement = document.querySelector(`#${newLink}.message`);
                     }
-                    if (postElement) {
-                        if (!postElement.hasAttribute("data-multiaccount-finder")) {
-                            postElement.setAttribute("data-multiaccount-finder", "added");
-                            if(postElement){
-                                let author = postElement.querySelector('.username').textContent;
-                                if (author !== `${navigationUsername}`) {
-                                    console.log(author)
-                                    console.log(newLink)
-                                    const multiaccountFinderItem = document.createElement("li");
-                                    let buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
-                                    let lastid = `${buttonId}`;
-                                    multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
-                                    linksList.appendChild(multiaccountFinderItem);
-                                    let usernameLink = postElement.querySelector('a');
-                                    let currentUrl = usernameLink.getAttribute('href')
-                                    //console.log(postElement)
-                                    let multiaccountFinderButton = document.getElementById(lastid);
-                                    if (multiaccountFinderButton) {
-                                        multiaccountFinderButton.addEventListener("click", function (event) {
-                                            event.preventDefault();
-                                            checkUser(`https://${domain}/${currentUrl}shared-ips/`)
-                                        })
-                                    }
-                                }
-                                //console.log("Текущая страница начинается с https://zelenka.guru/threads/");
 
+                    postElement = document.querySelector(`#${newLink}.${link.href.includes('posts/comments/') ? 'comment' : 'message'}`);
+
+                    if (postElement && !postElement.hasAttribute("data-multiaccount-finder")) {
+                        postElement.setAttribute("data-multiaccount-finder", "added");
+
+                        const menus = [...document.querySelectorAll('div.Menu')]
+                        .filter(menu => [...menu.querySelectorAll('a')].some(link => link.href.includes(`${postId}`)));
+
+                        const author = postElement.querySelector('.username').textContent;
+                        if (author !== hrefSearchUsers) {
+                            const multiaccountFinderItem = document.createElement("li");
+                            const buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
+                            multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a>`;
+                            menus[menus.length - 1].querySelector('.secondaryContent').appendChild(multiaccountFinderItem);
+
+                            const usernameLink = postElement.querySelector('a');
+                            const currentUrl = usernameLink.getAttribute('href');
+                            const multiaccountFinderButton = document.getElementById(buttonId);
+
+                            if (multiaccountFinderButton) {
+                                multiaccountFinderButton.addEventListener("click", function (event) {
+                                    event.preventDefault();
+                                    checkUser(`https://${domain}/${currentUrl}shared-ips/`)
+                                });
                             }
                         }
                     }
@@ -269,14 +228,64 @@ function checkThreadItems() {
     }
 }
 
+// ***уже оптимизирован***
+function checkProfileItems() {
+    const addButtonProfile = localStorage.getItem("addbutton-profile") === 'true';
+    const profilePostList = document.querySelector('ol#ProfilePostList');
+    if (addButtonProfile && profilePostList) {
+        const linksLists = [...profilePostList.querySelectorAll(':not(li[id^="multiaccountFinderButton-"])')];
+        linksLists.forEach((linksList) => {
+            const links = linksList.querySelectorAll("a");
+            links.forEach((link) => {
+                if (link.href.startsWith(`https://${domain}/profile-posts/`)) {
+                    let postId;
+                    let newLink;
+                    let postElement;
+                    if (link.href.includes('profile-posts/comments')) {
+                        postId = link.href.split('posts/comments/')[1].split('/')[0];
+                        newLink = `profile-post-comment-${postId}`
+                        postElement = document.querySelector(`#${newLink}.comment`);
+                    } else if (!link.href.includes('profile-posts/comments/')) {
+                        postId = link.href.split('profile-posts/')[1].split('/')[0];
+                        newLink = `profile-post-${postId}`
+                        postElement = document.querySelector(`#${newLink}.messageSimple`);
+                    }
+                    if (postElement && !postElement.hasAttribute("data-multiaccount-finder")) {
+                        postElement.setAttribute("data-multiaccount-finder", "added");
+                        const menus = [...document.querySelectorAll('div.Menu')].filter(menu => [...menu.querySelectorAll('a')].some(link => link.href.includes(`${postId}`)));
+                        let author = postElement.querySelector('a.username.poster')
+                        if (author.textContent !== hrefSearchUsers) {
+                            const multiaccountFinderItem = document.createElement("li");
+                            let buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
+                            let lastid = `${buttonId}`;
+                            multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
+                            menus[menus.length - 1].querySelector('.secondaryContent').appendChild(multiaccountFinderItem);
+                            let currentUrl = author.getAttribute('href')
+                            let multiaccountFinderButton = document.getElementById(lastid);
+                            if (multiaccountFinderButton) {
+                                multiaccountFinderButton.addEventListener("click", function (event) {
+                                    event.preventDefault();
+                                    checkUser(`https://${domain}/${currentUrl}shared-ips/`)
+                                })
+                            }
+                        }
+                    }
+                }
+            })
+        })
+    }
+}
+
 setInterval(checkMenuItems);
 setInterval(checkThreadItems);
+setInterval(checkProfileItems);
 
 function xenforoLogAndAlert(text, title) {
     console.log(text)
     XenForo.alert(`${text}`, `${title}`)
 }
 
+// ***уже оптимизирован***
 function checkUser(link, gifId) {
     console.log(gifId)
     console.log(`${link.replace(/(https:\/\/.*?)\/\//g, '$1/')}`)
@@ -318,6 +327,10 @@ function checkUser(link, gifId) {
             }
         }
 
+        if (!link.replace('/shared-ips', '').includes(domain)) {
+            link = `https://${domain}/${link.replace('/shared-ips', '')}`;
+        }
+
         const totalUsers = bannedUsersCount + nonBannedUsersCount;
         const bannedPercent = totalUsers ? ((bannedUsersCount / totalUsers) * 100).toFixed(2) : 0;
         const nonBannedPercent = totalUsers ? ((nonBannedUsersCount / totalUsers) * 100).toFixed(2) : 0;
@@ -329,7 +342,11 @@ function checkUser(link, gifId) {
         const cleaned = `${name} - пользователи по заданным параметрам не найдены`
         const multiaccount = `${name} - мультиаккаунт\n% заблокированных: ${bannedPercent}\n% не заблокированных: ${nonBannedPercent}\nОбщее количество пользователей в общих IP: ${numUserLogs}`
 
-        const template = `https://${domain}/forums/801/create-thread?title=%D0%96%D0%B0%D0%BB%D0%BE%D0%B1%D0%B0+%D0%BD%D0%B0+%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F+${name}&message=1.+%D0%9D%D0%B8%D0%BA%D0%BD%D0%B5%D0%B9%D0%BC+%D0%BD%D0%B0%D1%80%D1%83%D1%88%D0%B8%D1%82%D0%B5%D0%BB%D1%8F+%D0%B8+%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B0+%D0%BD%D0%B0+%D0%BF%D1%80%D0%BE%D1%84%D0%B8%D0%BB%D1%8C%3A+${link.replace(`/shared-ips`, ``)}%2F%0A2.+%D0%9A%D1%80%D0%B0%D1%82%D0%BA%D0%BE%D0%B5+%D0%BE%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D0%B5+%D0%B6%D0%B0%D0%BB%D0%BE%D0%B1%D1%8B%3A%0A3.+%D0%94%D0%BE%D0%BA%D0%B0%D0%B7%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0%3A`;
+        function template(description) {
+            const template = `https://${domain}/forums/801/create-thread?title=%D0%96%D0%B0%D0%BB%D0%BE%D0%B1%D0%B0+%D0%BD%D0%B0+%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F+${name}&message=1.+%D0%9D%D0%B8%D0%BA%D0%BD%D0%B5%D0%B9%D0%BC+%D0%BD%D0%B0%D1%80%D1%83%D1%88%D0%B8%D1%82%D0%B5%D0%BB%D1%8F+%D0%B8+%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B0+%D0%BD%D0%B0+%D0%BF%D1%80%D0%BE%D1%84%D0%B8%D0%BB%D1%8C%3A+${link.replace(`/shared-ips`, ``)}%2F%0A2.+%D0%9A%D1%80%D0%B0%D1%82%D0%BA%D0%BE%D0%B5+%D0%BE%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D0%B5+%D0%B6%D0%B0%D0%BB%D0%BE%D0%B1%D1%8B%3A ${description}%0A3.+%D0%94%D0%BE%D0%BA%D0%B0%D0%B7%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0%3A ${link.replace(`/shared-ips`, ``)}/shared-ips`;
+            window.location.href = `${template}`
+        }
+
 
         if (htmlDocument.body.textContent.includes("Пользователей по заданным параметрам не найдено.") ||
             htmlDocument.body.textContent.includes("No matching users were found.")) {
@@ -341,7 +358,7 @@ function checkUser(link, gifId) {
             if (gifElement) {
                 gifElement.addEventListener('click', function() {
                     // при нажатии на красный треугольник доступ к быстрому созданию темы
-                    window.location.href = `${template}`
+                    template(`${name}%20-%20%D0%BC%D0%BE%D1%88%D0%B5%D0%BD%D0%BD%D0%B8%D0%BA%0A%25%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${bannedPercent}%0A%25%20%D0%BD%D0%B5%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${nonBannedPercent}%0A%D0%9E%D0%B1%D1%89%D0%B5%D0%B5%20%D0%BA%D0%BE%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%BE%20%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D0%B5%D0%B9%20%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B8%D1%85%20IP%3A%20${numUserLogs}`)
                 });
                 gifElement.src = 'https://i.imgur.com/g5GxNHD.png';
                 gifElement.style.cursor = 'pointer';
@@ -364,7 +381,7 @@ function checkUser(link, gifId) {
             if (gifElement) {
                 gifElement.addEventListener('click', function() {
                     // при нажатии на красный треугольник доступ к быстрому созданию темы
-                    window.location.href = `${template}` // редирект на создание жалобы Zelenka.guru
+                    template(`${name}%20-%20%D0%B2%D0%BE%D0%B7%D0%BC%D0%BE%D0%B6%D0%BD%D0%BE%20%D0%BC%D0%BE%D1%88%D0%B5%D0%BD%D0%BD%D0%B8%D0%BA%0A%25%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${bannedPercent}%0A%25%20%D0%BD%D0%B5%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${nonBannedPercent}%0A%D0%9E%D0%B1%D1%89%D0%B5%D0%B5%20%D0%BA%D0%BE%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%BE%20%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D0%B5%D0%B9%20%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B8%D1%85%20IP%3A%20${numUserLogs}`)
                 });
                 gifElement.src = 'https://i.imgur.com/g5GxNHD.png';
                 gifElement.style.cursor = 'pointer';
