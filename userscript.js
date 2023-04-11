@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Lolzteam Multiaccount Finder
-// @version      1.4.0
+// @version      1.6.1
 // @description  Your assistant in finding scammers on the forum
 // @author       vuchaev2015
 // @match        https://zelenka.guru/*
@@ -27,7 +27,11 @@ let items = [
     {key: "autocheck-only-parameters-messages", value: "50"},
     {key: "addbutton-chat", value: "true"},
     {key: "addbutton-alerts", value: "true"},
-    {key: "addbutton-conversations", value: "true"}
+    {key: "addbutton-conversations", value: "true"},
+    {key: "retry-after-error", value: "true"},
+    {key: "fast-switch-with-button", value: "false"},
+    {key: "fast-switch-with-button-key", value: "F2"},
+    {key: "switch-page-automatically", value: "false"}
 ];
 
 items.forEach(function(item) {
@@ -52,97 +56,156 @@ let profileLink = document.querySelector("#AccountMenu > ul > li:nth-child(1) > 
 
 const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const date = new Date();
-date.getDate();
 const month = months[date.getMonth()];
-date.getFullYear();
 
 // ***вроде оптимизирован более-менее***
-// Меню с настройками
-function openSettings() {
-    const unixtime = Math.floor(Date.now() / 1000);
+function openSettings(page = 1) {
+    let modal = document.querySelector('div.modal.fade');
+    if (modal && modal.querySelector('[id^="addbutton-"]')) {
+        modal.remove();
+    }
+
+    document.querySelectorAll('div.modal-backdrop.fade').forEach(modalBackdrop => modalBackdrop.remove());
+    const lastId = generateRandomString(10);
+
     let checkboxes = [
-        {
-            id: "autocheck-profile", label: "Автоматическая проверка в профиле"
-        },
-        {
-            id: "autocheck-mini-profile", label: "Автоматическая проверка в мини-профиле"
-        },
-        {
-            id: "autocheck-banned-users-mporp", label: "Автоматическая проверка для заблокированных", dependent: ["autocheck-profile", "autocheck-mini-profile"]
-        },
-        {
-            id: "autocheck-newmembers", label: "Автоматическая проверка новых пользователей в разделе /members"
-        },
-        {
-            id: "autocheck-online-registered", label: "Автоматическая проверка в разделе /online/?type=registered"
-        },
-        {
-            id: "autocheck-only-parameters", label: "Автоматическая проверка только по параметрам (<<span id='sympCount-" + unixtime + "'>" + localStorage.getItem("autocheck-only-parameters-sympathies") + "</span> симпатий и <" + "<span id='msgCount-" + unixtime + "'>" + localStorage.getItem("autocheck-only-parameters-messages") + "</span> сообщений)"
-        },
-        {
-            id: "addbutton-threads", label: "Добавить кнопку на посты и комментарии в теме (три точки)"
-        },
-        {
-            id: "addbutton-chat", label: "Добавить кнопку на сообщения в чате (три точки)"
-        },
-        {
-            id: "addbutton-profile", label: "Добавить кнопку на посты и комментарии в профиле (три точки)"
-        },
-        {
-            id: "addbutton-alerts", label: "Добавить кнопку на уведомления в списке /account/alerts (три точки)"
-        },
-        {
-            id: "addbutton-conversations", label: "Добавить кнопку на диалоги в личных сообщениях (три точки)"
-        },
-        {
-            id: "show-blocked-percentage", label: "Добавить в подробную информацию % заблокированных"
-        },
-        {
-            id: "show-unblocked-percentage", label: "Добавить в подробную информацию % не заблокированных"
-        },
-        {
-            id: "show-total-users-ip", label: "Добавить в подробную информацию общее количество пользователей в общих IP"
-        },
-        {
-            id: "show-blocked-this-month-percentage", label: "Добавить в подробную информацию % от заблокированных в этом месяце"
-        }
-    ];
-    let content = "";
+        { id: 'autocheck-profile', label: 'Автоматическая проверка в профиле' },
+        { id: 'autocheck-mini-profile', label: 'Автоматическая проверка в мини-профиле' },
+        { id: 'autocheck-banned-users-mporp', label: 'Автоматическая проверка для заблокированных', dependent: ['autocheck-profile', 'autocheck-mini-profile'] },
+        { id: 'autocheck-newmembers', label: 'Автоматическая проверка новых пользователей в разделе /members' },
+        { id: 'autocheck-online-registered', label: 'Автоматическая проверка в разделе /online/?type=registered' },
+        { id: 'autocheck-only-parameters', label: `Автоматическая проверка только по параметрам (<span id="sympCount-${lastId}">${localStorage.getItem('autocheck-only-parameters-sympathies')}</span> симпатий и <span id="msgCount-${lastId}">${localStorage.getItem('autocheck-only-parameters-messages')}</span> сообщений)` },
+        { id: 'addbutton-threads', label: 'Кнопка на посты и комментарии в теме (три точки)' },
+        { id: 'addbutton-chat', label: 'Кнопка на сообщения в чате (три точки)' },
+        { id: 'addbutton-profile', label: 'Кнопка на посты и комментарии в профиле (три точки)' },
+        { id: 'addbutton-alerts', label: 'Кнопка на уведомления (три точки)' },
+        { id: 'addbutton-conversations', label: 'Кнопка на диалоги в личных сообщения (три точки)' },
+        { id: 'show-blocked-percentage', label: 'Отображать в подробной информации % заблокированных' },
+        { id: 'show-unblocked-percentage', label: 'Отображать в подробной информации % не заблокированных' },
+        { id: 'show-total-users-ip', label: 'Отображать в подробной информации общее количество пользователей в общих IP' },
+        { id: 'show-blocked-this-month-percentage', label: 'Отображать в подробной информации % от заблокированных в этом месяце' },
+        { id: 'fast-switch-with-button', label: `Быстрое переключение на следующую страницу кнопкой <span id="buttonkey-${lastId}">${localStorage.getItem('fast-switch-with-button-key')}</span>` },
+        { id: 'retry-after-error', label: 'Повторная проверка после ошибки Name not found (15000 ms)' },
+        { id: 'switch-page-automatically', label: 'Переключать на следующую страницу автоматически (пока не найдет мошенника)' }
+    ]
+
     const numCheckboxes = checkboxes.length;
-    checkboxes.forEach(function(checkbox, index) {
+    const checkboxesPerPage = 10;
+    const numPages = Math.ceil(numCheckboxes / checkboxesPerPage);
+
+    const startIndex = (page - 1) * checkboxesPerPage;
+    const endIndex = page * checkboxesPerPage;
+    let filteredCheckboxes = checkboxes.slice(startIndex, endIndex);
+    let nextPage = page + 1;
+    let prevPage = page - 1;
+
+    if (page > 1) {
+        filteredCheckboxes = checkboxes.slice((page - 1) * checkboxesPerPage, page * checkboxesPerPage);
+        nextPage = page + 1;
+    } else {
+        filteredCheckboxes = checkboxes.slice(0, checkboxesPerPage);
+    }
+
+    let content = "";
+
+    filteredCheckboxes.forEach(function(checkbox, index) {
         let isChecked = localStorage.getItem(checkbox.id) === "true";
         const disabled = checkbox.dependent && !checkbox.dependent.every(function (dep) {
             return localStorage.getItem(dep) === "true";
         });
-        content += '<div> <input type="checkbox" id="' + checkbox.id + '-' + unixtime + '" name="' + checkbox.id + '-' + unixtime + '" ' + (isChecked ? 'checked="checked" ' : '') + (disabled ? 'disabled ' : '') + 'value="1"> ' + checkbox.label + '</div>';
-        if (index !== numCheckboxes - 1) {
+        content += '<div> <input type="checkbox" id="' + checkbox.id + '-' + lastId + '" name="' + checkbox.id + '-' + lastId + '" ' + (isChecked ? 'checked="checked" ' : '') + (disabled ? 'disabled ' : '') + 'value="1"> ' + checkbox.label + '</div>';
+        if (index !== filteredCheckboxes.length - 1) {
             content += '<br>';
         }
     });
 
+    // Добавляем "Предыдущая страница" кнопку
+    if (prevPage >= 1) {
+        content += '<br>';
+        content += (nextPage <= numPages) ?
+            '<div style="margin-right: 10px; display: inline-block;"><button type="button" name="prev" value="Предыдущая страница" accesskey="s" class="button primary" id="prev-page-' + lastId + '">Предыдущая страница</button></div>' :
+        '<button type="button" name="prev" value="Предыдущая страница" accesskey="s" class="button primary" id="prev-page-' + lastId + '">Предыдущая страница</button>';
+    }
+
+    // Добавляем "Следующая страница" кнопку
+    if (nextPage <= numPages) {
+        content += (prevPage >= 1) ?
+            '<button type="button" name="next" value="Следующая страница" accesskey="s" class="button primary" id="next-page-' + lastId + '">Следующая страница</button>' :
+        '<br><button type="button" name="next" value="Следующая страница" accesskey="s" class="button primary" id="next-page-' + lastId + '">Следующая страница</button>';
+    }
+
+    // Добавляем текст на какой странице настроек пользователь находится
+    content += '<span style="margin-left: 10px;">Страница: ' + page + ' из ' + numPages + '</span>';
+
     XenForo.alert(content, 'Lolzteam Multiaccount Finder');
 
-    checkboxes.forEach(function(checkbox) {
-        const id = checkbox.id + '-' + unixtime;
+    filteredCheckboxes.forEach(function(checkbox) {
+        const id = checkbox.id + '-' + lastId;
         const checkboxEl = document.getElementById(id);
-        checkboxEl.addEventListener('change', function() {
-            localStorage.setItem(checkbox.id, `${this.checked}`);
+        if (checkboxEl) {
+            checkboxEl.addEventListener('change', function() {
+                localStorage.setItem(checkbox.id, `${this.checked}`);
+            });
+        }
+    });
+
+    const addClickListener = (selector, promptMessage, localStorageKey) => {
+        const el = document.querySelector(selector);
+        if (el) {
+            el.addEventListener('click', function() {
+                const newValue = prompt(promptMessage);
+                if (newValue !== null && !isNaN(parseInt(newValue)) && newValue.trim() !== '') {
+                    localStorage.setItem(localStorageKey, newValue);
+                    el.textContent = newValue;
+                }
+            });
+        }
+    };
+
+    addClickListener(`#sympCount-${lastId}`, "Введите новое значение счетчика симпатий:", "autocheck-only-parameters-sympathies");
+    addClickListener(`#msgCount-${lastId}`, "Введите новое значение счетчика сообщений:", "autocheck-only-parameters-messages");
+
+    const addPageClickListener = (selector, page) => {
+        const el = document.querySelector(selector);
+        if (el) {
+            el.addEventListener('click', function(event) {
+                event.stopPropagation();
+                openSettings(page);
+            });
+        }
+    };
+
+    ['next', 'prev'].forEach((direction) => {
+        addPageClickListener(`#${direction}-page-${lastId}`, direction === 'next' ? nextPage : prevPage);
+    });
+
+    const buttonKey = document.querySelector(`#buttonkey-${lastId}`);
+    if (buttonKey) {
+        let keydownListener; // Объявляем переменную для хранения ссылки на функцию-слушатель
+        buttonKey.addEventListener('click', () => {
+            buttonKey.style.color = 'red'; // Изменяем цвет текста на красный
+            const toggleKeydownListener = () => {
+                if (keydownListener) {
+                    document.removeEventListener('keydown', keydownListener);
+                    buttonKey.style.color = ''; // Возвращаем обычный цвет текста кнопки
+                    keydownListener = null; // Устанавливаем значение переменной keydownListener в null
+                } else {
+                    const currentKey = localStorage.getItem('fast-switch-with-button-key');
+                    keydownListener = (event) => {
+                        if (event.key !== currentKey) { // Если нажата другая клавиша, сохраняем ее в Local Storage и обновляем текст метки
+                            localStorage.setItem('fast-switch-with-button-key', event.key);
+                            buttonKey.textContent = `${event.key}`;
+                            buttonKey.style.color = ''; // Возвращаем обычный цвет текста кнопки
+                            document.removeEventListener('keydown', keydownListener); // Удаляем слушатель событий keydown
+                            keydownListener = null; // Устанавливаем значение переменной keydownListener в null
+                        }
+                    };
+                    document.addEventListener('keydown', keydownListener); // Добавляем слушатель событий keydown
+                }
+            };
+            toggleKeydownListener();
         });
-    });
-    document.querySelector("#sympCount-" + unixtime).addEventListener("click", function() {
-        const newSympCount = prompt("Введите новое значение счетчика симпатий:");
-        if (newSympCount !== null && !isNaN(parseInt(newSympCount)) && newSympCount.trim() !== '') {
-            localStorage.setItem("autocheck-only-parameters-sympathies", newSympCount);
-            document.getElementById("sympCount-" + unixtime).textContent = newSympCount;
-        }
-    });
-    document.getElementById("msgCount-" + unixtime).addEventListener("click", function() {
-        const newMsgCount = prompt("Введите новое значение счетчика сообщений:");
-        if (newMsgCount !== null && !isNaN(parseInt(newMsgCount)) && newMsgCount.trim() !== '') {
-            localStorage.setItem("autocheck-only-parameters-messages", newMsgCount);
-            document.getElementById("msgCount-" + unixtime).textContent = newMsgCount;
-        }
-    });
+    }
 }
 
 // ***уже оптимизирован***
@@ -153,18 +216,12 @@ function checkMenuItems() {
         const menu = item.parentNode.parentNode;
         if (menu.hasAttribute("data-multiaccount-finder")) return;
         menu.setAttribute("data-multiaccount-finder", "added");
-        const newMenuItem = document.createElement("li");
         const buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
-        newMenuItem.innerHTML = `<a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a>`;
-        menu.appendChild(newMenuItem);
+        //newMenuItem.innerHTML = `<a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a>`;
         const currentUrl = item.getAttribute('href');
-        const multiaccountFinderButton = document.getElementById(buttonId);
-        if (multiaccountFinderButton) {
-            multiaccountFinderButton.addEventListener("click", event => {
-                event.preventDefault();
-                checkUser(currentUrl).then();
-            })
-        }
+        menu.appendChild(createButtonElement(buttonId, currentUrl));
+
+
         const makeClaimLink = menu.querySelector('a[href*="/make-claim"]');
         if (makeClaimLink) {
             if (localStorage.getItem("autocheck-mini-profile") !== 'true') return;
@@ -174,13 +231,8 @@ function checkMenuItems() {
                 const bannedcheck = module.parentNode.parentNode;
                 if (bannedcheck.hasAttribute("data-multiaccount-finder")) return;
                 bannedcheck.setAttribute("data-multiaccount-finder", "added");
-                const gifElement = document.createElement('img');
                 const gifId = `gif-profile-${generateRandomString(10)}`;
-                gifElement.id = gifId;
-                gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
-                gifElement.width = '24';
-                gifElement.height = '24';
-                gifElement.title = '';
+
                 const countsModule = document.querySelectorAll('.userStatCounters');
                 let lastElement = countsModule[countsModule.length - 1]
                 const miniprofileMenu = lastElement.parentNode.parentNode;
@@ -193,7 +245,7 @@ function checkMenuItems() {
                     if (localStorage.getItem("autocheck-only-parameters") === 'true' && (sympathies >= parseInt(localStorage.getItem("autocheck-only-parameters-sympathies")) && messages >= parseInt(localStorage.getItem("autocheck-only-parameters-messages")))) return;
                 }
 
-                lastElement.appendChild(gifElement);
+                lastElement.appendChild(createGifElement(gifId, 'https://i.imgur.com/I5VH0zp.gif', 24,24));
                 if (localStorage.getItem("autocheck-banned-users-mporp") === 'false' && bannedcheck.querySelector('.banInfo.muted.Tooltip') || bannedcheck.querySelector('div.errorPanel')) {
                     const element = document.getElementById(gifId);
                     if (element) element.remove();
@@ -215,13 +267,9 @@ function checkMenuItems() {
                 const bannedcheck = module.parentNode.parentNode;
                 if (bannedcheck.hasAttribute("data-multiaccount-finder")) return;
                 bannedcheck.setAttribute("data-multiaccount-finder", "added");
-                const gifElement = document.createElement('img');
+
                 const gifId = `gif-profile`;
-                gifElement.id = gifId;
-                gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
-                gifElement.width = '32';
-                gifElement.height = '32';
-                gifElement.title = '';
+
                 const countsModule = document.querySelectorAll('.counts_module');
                 countsModule.forEach(module => {
                     const profilecounter = module.parentNode.parentNode;
@@ -230,7 +278,7 @@ function checkMenuItems() {
                     if (sympathies || !messages) {
                         if (localStorage.getItem("autocheck-only-parameters") === 'true' && (sympathies >= parseInt(localStorage.getItem("autocheck-only-parameters-sympathies")) && messages >= parseInt(localStorage.getItem("autocheck-only-parameters-messages")))) return;
                     }
-                    module.appendChild(gifElement);
+                    module.appendChild(createGifElement(gifId, 'https://i.imgur.com/I5VH0zp.gif', 32,32));
                     if (localStorage.getItem("autocheck-banned-users-mporp") === 'false' && bannedcheck.querySelector('div.errorPanel')) {
                         const element = document.getElementById(gifId);
                         if (element) element.remove();
@@ -243,6 +291,29 @@ function checkMenuItems() {
             });
         }
     });
+}
+
+function createButtonElement(buttonId, currentUrl) {
+    const multiaccountFinderItem = document.createElement("li");
+    const button = document.createElement("a");
+    button.setAttribute("href", "javascript:void(0)");
+    button.setAttribute("id", buttonId);
+    button.textContent = "Multiaccount Finder";
+    button.addEventListener("click", function(event) {
+        event.preventDefault();
+        checkUser(`https://${domain}/${currentUrl}/shared-ips/`).then();
+    });
+    multiaccountFinderItem.appendChild(button);
+    return multiaccountFinderItem;
+}
+
+function createGifElement(gifId, src, width, height) {
+    const gifElement = document.createElement('img');
+    gifElement.id = gifId;
+    gifElement.src = src;
+    gifElement.width = width;
+    gifElement.height = height;
+    return gifElement;
 }
 
 function generateRandomString(length) {
@@ -288,21 +359,12 @@ function checkThreadItems() {
 
                         const author = postElement.querySelector('.username').textContent;
                         if (author !== hrefSearchUsers) {
-                            const multiaccountFinderItem = document.createElement("li");
                             const buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
-                            multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a>`;
-                            menus[menus.length - 1].querySelector('.secondaryContent').appendChild(multiaccountFinderItem);
 
                             const usernameLink = postElement.querySelector('a');
                             const currentUrl = usernameLink.getAttribute('href');
-                            const multiaccountFinderButton = document.getElementById(buttonId);
 
-                            if (multiaccountFinderButton) {
-                                multiaccountFinderButton.addEventListener("click", function (event) {
-                                    event.preventDefault();
-                                    checkUser(`https://${domain}/${currentUrl}shared-ips/`).then()
-                                });
-                            }
+                            menus[menus.length - 1].querySelector('.secondaryContent').appendChild(createButtonElement(buttonId, currentUrl));
                         }
                     }
                 }
@@ -338,19 +400,11 @@ function checkProfileItems() {
                         const menus = [...document.querySelectorAll('div.Menu')].filter(menu => [...menu.querySelectorAll('a')].some(link => link.href.includes(`${postId}`)));
                         let author = postElement.querySelector('a.username.poster')
                         if (author.textContent !== hrefSearchUsers) {
-                            const multiaccountFinderItem = document.createElement("li");
+                            document.createElement("li");
                             let buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
-                            let lastid = `${buttonId}`;
-                            multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
-                            menus[menus.length - 1].querySelector('.secondaryContent').appendChild(multiaccountFinderItem);
                             let currentUrl = author.getAttribute('href')
-                            let multiaccountFinderButton = document.getElementById(lastid);
-                            if (multiaccountFinderButton) {
-                                multiaccountFinderButton.addEventListener("click", function (event) {
-                                    event.preventDefault();
-                                    checkUser(`https://${domain}/${currentUrl}shared-ips/`).then()
-                                })
-                            }
+                            menus[menus.length - 1].querySelector('.secondaryContent').appendChild(createButtonElement(buttonId, currentUrl));
+
                         }
                     }
                 }
@@ -371,24 +425,13 @@ function checkAlertItems() {
                     const usernameLink = username.getAttribute('href');
                     const lastMenu = menus[menus.length - 1];
                     let buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
-                    let lastid = `${buttonId}`;
-                    const multiaccountFinderItem = document.createElement("li");
-                    multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
-                    lastMenu.querySelector('ul.secondaryContent.blockLinksList').appendChild(multiaccountFinderItem);
-                    let multiaccountFinderButton = document.getElementById(lastid);
-                    if (multiaccountFinderButton) {
-                        multiaccountFinderButton.addEventListener("click", function (event) {
-                            event.preventDefault();
-                            checkUser(`https://${domain}/${usernameLink}shared-ips/`).then()
-                        })
-                    }
+                    lastMenu.querySelector('ul.secondaryContent.blockLinksList').appendChild(createButtonElement(buttonId, usernameLink));
                     alertElement.setAttribute("data-multiaccount-finder", "added");
                 }
             }
         })
     }
 }
-
 function checkConversationItems() {
     if (localStorage.getItem("addbutton-conversations") === 'true') {
         if (!window.location.href.startsWith(`https://${domain}/conversations/`)) return
@@ -398,18 +441,9 @@ function checkConversationItems() {
         const menuElements = Array.from(document.querySelectorAll('div.Menu')).filter(menuElement => menuElement.querySelector('.blockLinksList a[href^="conversations/"]'));
         const targetElement = menuElements[menuElements.length - 1];
         if (targetElement && !targetElement.hasAttribute("data-multiaccount-finder")) {
-            const multiaccountFinderItem = document.createElement("li");
+            document.createElement("li");
             let buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
-            let lastid = `${buttonId}`;
-            multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${lastid}">Multiaccount Finder</a>`;
-            targetElement.querySelector('.blockLinksList').appendChild(multiaccountFinderItem);
-            let multiaccountFinderButton = document.getElementById(lastid);
-            if (multiaccountFinderButton) {
-                multiaccountFinderButton.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    checkUser(`https://${domain}/${usernameLink}shared-ips/`).then()
-                })
-            }
+            targetElement.querySelector('.blockLinksList').appendChild(createButtonElement(buttonId, usernameLink));
             targetElement.setAttribute("data-multiaccount-finder", "added");
         }
     }
@@ -444,8 +478,6 @@ function checkChatItems() {
                     usernameLink = prevMessage.querySelector('.username[href]');
                     prevIndex--;
                 }
-                if (usernameLink ){
-                    console.log(usernameLink)}
             }
             const ulElement = lastElement.querySelector('ul.secondaryContent.blockLinksList');
             if (!ulElement || ulElement.hasAttribute("data-multiaccount-finder")) return;
@@ -453,18 +485,8 @@ function checkChatItems() {
             ulElement.setAttribute("data-multiaccount-finder", "added");
             const username = usernameLink.textContent
             const buttonId = `multiaccountFinderButton-${generateRandomString(10)}`;
-            const multiaccountFinderItem = document.createElement("li");
-            multiaccountFinderItem.innerHTML = `<a href="javascript:void(0)" id="${buttonId}">Multiaccount Finder</a>`;
-
             if (username !== hrefSearchUsers) {
-                ulElement.appendChild(multiaccountFinderItem);
-            }
-            const multiaccountFinderButton = document.getElementById(buttonId);
-            if (multiaccountFinderButton) {
-                multiaccountFinderButton.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    checkUser(`${usernameLink}shared-ips/`).then()
-                });
+                ulElement.appendChild(createButtonElement(buttonId, usernameLink.href.replace(`https://${domain}`, '')));
             }
         }
     });
@@ -478,9 +500,13 @@ function OnlineChangeTable(classname, num) {
         if (ddElement) {
             const currentValue = parseInt(ddElement.textContent);
             ddElement.textContent = currentValue + num;
+            if (findelement.classList.contains('scammers')) {
+                ddElement.style.color = 'red';
+            }
         }
     }
-    if (remainedElement) {
+    const shouldDecrementRemainedElement = !(classname === 'dl.errors' && localStorage.getItem('retry-after-error') === 'true');
+    if (remainedElement && shouldDecrementRemainedElement) {
         const currentValueRemained = parseInt(remainedElement.textContent);
         remainedElement.textContent = currentValueRemained - 1;
     }
@@ -489,6 +515,17 @@ function OnlineChangeTable(classname, num) {
 // Проверяем, начинается ли текущий URL с "https://${domain}/online/?type=registered/"
 if (localStorage.getItem("autocheck-online-registered") === 'true') {
     if (window.location.href.indexOf(`https://${domain}/online/?type=registered`) === 0) {
+        const currentPage = parseInt(document.querySelector('.currentPage').innerText.trim());
+        const maxPage = parseInt(document.querySelector("#content > div > div > div > div > div > div > nav > a:nth-child(5)").innerText.trim());
+
+        if (localStorage.getItem("fast-switch-with-button") === 'true') {
+            document.addEventListener('keydown', function(event) {
+                if (event.keyCode === 113 && currentPage < maxPage) {
+                    window.location.href = `https://${domain}/online/?type=registered&page=${currentPage + 1}`;
+                }
+            });
+        }
+
         const visitorCountDl = document.querySelector('dl.visitorCount');
         const members = document.querySelectorAll('.member');
         if (visitorCountDl && !visitorCountDl.querySelector('dl.clean')) {
@@ -508,17 +545,21 @@ if (localStorage.getItem("autocheck-online-registered") === 'true') {
 
         let index = 0;
         const checkNextMember = async () => {
-            if (index >= members.length) return;
+            if (index >= members.length) {
+                const scammersCount = parseInt(document.querySelector("dl.scammers dd").innerText);
+                if (localStorage.getItem("switch-page-automatically") === 'true' && currentPage < maxPage && scammersCount < 1) {
+                    window.location.href = `https://${domain}/online/?type=registered&page=${currentPage + 1}`;
+                }
+                return;
+            }
+
             const member = members[index];
             const usernameLink = member.querySelector('a.username');
             const usernameHref = usernameLink.getAttribute('href');
             const userStatCounters = member.querySelector('.userStatCounters');
-            const gifElement = document.createElement('img');
+
             const gifId = `gif-${index}`;
-            gifElement.id = gifId;
-            gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
-            gifElement.width = '24';
-            gifElement.height = '24';
+
             if (usernameLink.textContent !== hrefSearchUsers) {
                 const sympathies = member.querySelector("div.userStatCounters > div:nth-child(1) > span.count").textContent.replace(/ /g, "")
                 const messages = member.querySelector("div.userStatCounters > div:nth-child(2) > span.count").textContent.replace(/ /g, "")
@@ -527,14 +568,14 @@ if (localStorage.getItem("autocheck-online-registered") === 'true') {
                     if ((sympathies < parseInt(localStorage.getItem("autocheck-only-parameters-sympathies")) && messages < parseInt(localStorage.getItem("autocheck-only-parameters-messages")))
                         || (sympathies >= parseInt(localStorage.getItem("autocheck-only-parameters-sympathies")) && messages < parseInt(localStorage.getItem("autocheck-only-parameters-messages")))
                         || (sympathies < parseInt(localStorage.getItem("autocheck-only-parameters-sympathies")) && messages >= parseInt(localStorage.getItem("autocheck-only-parameters-messages")))) {
-                        userStatCounters.appendChild(gifElement);
-                        await checkUser(`https://zelenka.guru/${usernameHref}shared-ips`, 'registered', gifId);
+                        userStatCounters.appendChild(createGifElement(gifId, 'https://i.imgur.com/I5VH0zp.gif', 24,24));
+                        await checkUser(`https://${domain}/${usernameHref}shared-ips`, 'registered', gifId);
                     } else {
                         OnlineChangeTable('dl.skipped', 1)
                     }
                 } else {
-                    userStatCounters.appendChild(gifElement);
-                    await checkUser(`https://zelenka.guru/${usernameHref}shared-ips`, 'registered', gifId);
+                    userStatCounters.appendChild(createGifElement(gifId, 'https://i.imgur.com/I5VH0zp.gif', 24,24));
+                    await checkUser(`https://${domain}/${usernameHref}shared-ips`, 'registered', gifId);
                 }
             } else {
                 OnlineChangeTable('dl.skipped', 0)
@@ -568,14 +609,9 @@ if (localStorage.getItem("autocheck-newmembers") === 'true' && window.location.h
         const usernameLink = member.querySelector('a.username');
         const usernameHref = usernameLink.getAttribute('href');
         const userStatCounters = member.querySelector('div.memberInfo');
-        const gifElement = document.createElement('img');
         const gifId = `gif-${index}`;
-        gifElement.id = gifId;
-        gifElement.src = 'https://cdn.lowgif.com/full/631c400b903c03d9-loading-gif-wpfaster.gif';
-        gifElement.width = '24';
-        gifElement.height = '24';
-        userStatCounters.appendChild(gifElement);
-        await checkUser(`https://zelenka.guru/${usernameHref}shared-ips`, 'members', gifId);
+        userStatCounters.appendChild(createGifElement(gifId, 'https://i.imgur.com/I5VH0zp.gif', 24,24));
+        await checkUser(`https://${domain}/${usernameHref}shared-ips`, 'members', gifId);
         index++;
         await checkNextMember();
     }
@@ -587,11 +623,16 @@ function xenforoLogAndAlert(text, title) {
     XenForo.alert(`${text}`, `${title}`)
 }
 
+function encodeOutput(output) {
+    const text = output.toString();
+    return encodeURIComponent(text).replace("\n", "/%0A/g");
+}
+
 // ***уже оптимизирован***
 function checkUser(link, source, gifId) {
     console.log(gifId)
-    console.log(`${link.replace(/(https:\/\/.*?)\/\//g, '$1/')}`)
-    return fetch(`${link.replace(/(https:\/\/.*?)\/\//g, '$1/')}`)
+    console.log(`${link.replace(/(https:\/\/.*?)\/\//g, '$1/').replace(/\/shared-ips/gi, "/shared-ips").replace(/(\/shared-ips)+/gi, "/shared-ips")}`)
+    return fetch(`${link.replace(/(https:\/\/.*?)\/\//g, '$1/').replace(/\/shared-ips/gi, "/shared-ips").replace(/(\/shared-ips)+/gi, "/shared-ips")}`)
         .then(response => response.text())
         .then(data => {
         const parser = new DOMParser();
@@ -612,8 +653,20 @@ function checkUser(link, source, gifId) {
             if (gifElement) {
                 gifElement.src = 'https://i.imgur.com/wqXWudH.png'; // подгружаем иконку ошибки с imgur
             }
-            OnlineChangeTable('dl.errors', 1)
-            throw new Error("Name not found");
+            OnlineChangeTable('dl.errors', 1);
+
+            // Задержка в 15 секунд и повторная проверка
+
+            if (localStorage.getItem('retry-after-error') === "true") {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        console.log("Retrying check for user:", link);
+                        resolve(checkUser(link, source, gifId));
+                    }, 15000);
+                });
+            } else {
+                throw new Error("Name not found");
+            }
         }
 
         for (let i = 0; i < userLogs.length; i++) {
@@ -660,8 +713,10 @@ function checkUser(link, source, gifId) {
         output += (showBlockedThisMonthPercentage) ? `\n% от заблокированных в этом месяце: ${bannedThisMonthPercent} (${bannedThisMonthCount})` : '';
 
         function template(description) {
-            const template = `https://${domain}/forums/801/create-thread?prefix_id=92&title=%D0%96%D0%B0%D0%BB%D0%BE%D0%B1%D0%B0+%D0%BD%D0%B0+%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F+${name}&message=[CLUB]1.+%D0%9D%D0%B8%D0%BA%D0%BD%D0%B5%D0%B9%D0%BC+%D0%BD%D0%B0%D1%80%D1%83%D1%88%D0%B8%D1%82%D0%B5%D0%BB%D1%8F+%D0%B8+%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B0+%D0%BD%D0%B0+%D0%BF%D1%80%D0%BE%D1%84%D0%B8%D0%BB%D1%8C%3A+${link.replace(`/shared-ips`, ``)}%2F%0A2.+%D0%9A%D1%80%D0%B0%D1%82%D0%BA%D0%BE%D0%B5+%D0%BE%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D0%B5+%D0%B6%D0%B0%D0%BB%D0%BE%D0%B1%D1%8B%3A ${description}%0A3.+%D0%94%D0%BE%D0%BA%D0%B0%D0%B7%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0%3A ${link.replace(`/shared-ips`, ``)}/shared-ips[/CLUB]`;
-            window.location.href = `${template}`
+            let title = encodeOutput(`Жалоба на пользователя ${name}`)
+            let message = encodeOutput(`[CLUB]1. Никнейм нарушителя и ссылка на профиль: ${link.replace(`/shared-ips`,``)}/\n2. Краткое описание жалобы: ${description}\n3. Доказательства: ${link.replace(`/shared-ips`,``)}/shared-ips[/CLUB]`)
+            const template = `https://${domain}/forums/801/create-thread?prefix_id=92&title=${title}&message=${message}`;
+            window.open(`${template}`, '_blank');
         }
 
         if (htmlDocument.body.textContent.includes("Пользователей по заданным параметрам не найдено.") ||
@@ -675,10 +730,6 @@ function checkUser(link, source, gifId) {
         } else if (bannedUsersCount >= nonBannedUsersCount && bannedUsersCount !== 0) {
             output = output ? `${name} - мошенник ${output}` : `${name} - мошенник`;
             if (gifElement) {
-                gifElement.addEventListener('click', function () {
-                    // при нажатии на красный треугольник доступ к быстрому созданию темы
-                    template(`${name}%20-%20%D0%BC%D0%BE%D1%88%D0%B5%D0%BD%D0%BD%D0%B8%D0%BA%0A%25%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${bannedPercent} (${bannedUsersCount}) %0A%25%20%D0%BD%D0%B5%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${nonBannedPercent} (${nonBannedUsersCount}) %0A%D0%9E%D0%B1%D1%89%D0%B5%D0%B5%20%D0%BA%D0%BE%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%BE%20%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D0%B5%D0%B9%20%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B8%D1%85%20IP%3A%20${numUserLogs}%0A%25%20%D0%BE%D1%82%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%20%D0%B2%20%D1%8D%D1%82%D0%BE%D0%BC%20%D0%BC%D0%B5%D1%81%D1%8F%D1%86%D0%B5%3A%20${bannedThisMonthPercent} (${bannedThisMonthCount}) `)
-                });
                 gifElement.src = 'https://i.imgur.com/g5GxNHD.png';
                 gifElement.style.cursor = 'pointer';
                 gifElement.title = `${output}`
@@ -704,10 +755,6 @@ function checkUser(link, source, gifId) {
         } else if (bannedUsersCount > nonBannedUsersCount / 2) {
             output = output ? `${name} - возможно мошенник ${output}` : `${name} - возможно мошенник`;
             if (gifElement) {
-                gifElement.addEventListener('click', function () {
-                    // при нажатии на красный треугольник доступ к быстрому созданию темы
-                    template(`${name}%20-%20%D0%B2%D0%BE%D0%B7%D0%BC%D0%BE%D0%B6%D0%BD%D0%BE%20%D0%BC%D0%BE%D1%88%D0%B5%D0%BD%D0%BD%D0%B8%D0%BA%0A%25%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${bannedPercent} (${bannedUsersCount}) %0A%25%20%D0%BD%D0%B5%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%3A%20${nonBannedPercent} (${nonBannedUsersCount}) %0A%D0%9E%D0%B1%D1%89%D0%B5%D0%B5%20%D0%BA%D0%BE%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%BE%20%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D0%B5%D0%B9%20%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B8%D1%85%20IP%3A%20${numUserLogs}%0A%25%20%D0%BE%D1%82%20%D0%B7%D0%B0%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%20%D0%B2%20%D1%8D%D1%82%D0%BE%D0%BC%20%D0%BC%D0%B5%D1%81%D1%8F%D1%86%D0%B5%3A%20${bannedThisMonthPercent} (${bannedThisMonthCount}) `)
-                });
                 gifElement.src = 'https://i.imgur.com/g5GxNHD.png';
                 gifElement.style.cursor = 'pointer';
                 gifElement.title = `${output}`
@@ -721,6 +768,12 @@ function checkUser(link, source, gifId) {
             gifElement && (gifElement.title = `${output}`);
             !gifElement && xenforoLogAndAlert(`${output}`, `Lolzteam Multiaccount Finder`);
             if (source === 'members' || source === 'registered') OnlineChangeTable('dl.clean', 1);
+        }
+        if (gifElement && output.includes("мошенник")) {
+            gifElement.addEventListener('click', function () {
+                // при нажатии на красный треугольник доступ к быстрому созданию темы
+                template(output);
+            });
         }
     })
         .catch(error => console.error(error));
